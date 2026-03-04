@@ -27,6 +27,7 @@ app.use('/api/profile', require('./routes/Profile'));
 app.use('/api/readiness', require('./routes/readiness'));
 app.use('/api/roadmap', require('./routes/roadmap'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/progress', require('./routes/progress'));
 
 // Base route
 app.get('/', (req, res) => {
