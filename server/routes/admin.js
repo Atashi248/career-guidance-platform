@@ -11,8 +11,11 @@ router.get('/students', protect, adminOnly, async (req, res) => {
     const students = await User.find({ role: 'student' }).select('-password');
     const studentsWithProfiles = await Promise.all(
       students.map(async (student) => {
-        const profile = await Profile.findOne({ user: student._id });
-        return { ...student.toObject(), profile: profile || null };
+        const profile = await Profile.findOne({ user: student._id }).lean();
+        return { 
+          ...student.toObject(), 
+          profile: profile || null 
+        };
       })
     );
     res.json(studentsWithProfiles);
@@ -27,8 +30,7 @@ router.get('/students/:id', protect, adminOnly, async (req, res) => {
   try {
     const student = await User.findById(req.params.id).select('-password');
     if (!student) return res.status(404).json({ message: 'Student not found' });
-
-    const profile = await Profile.findOne({ user: req.params.id });
+    const profile = await Profile.findOne({ user: req.params.id }).lean();
     res.json({ ...student.toObject(), profile: profile || null });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -44,7 +46,6 @@ router.get('/stats', protect, adminOnly, async (req, res) => {
     const roleDistribution = await Profile.aggregate([
       { $group: { _id: '$targetRole', count: { $sum: 1 } } }
     ]);
-
     res.json({ totalStudents, totalProfiles, roleDistribution });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
