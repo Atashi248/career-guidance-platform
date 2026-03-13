@@ -40,15 +40,13 @@ const calculateReadinessScore = (profile) => {
   }
 
   // 3. Projects (max 20 points)
-  if (profile.projects && profile.projects.length > 0) {
-    const projectScore = Math.min(profile.projects.length * 7, 20);
-    score += projectScore;
-    if (profile.projects.length >= 2) {
-      strengths.push('Good number of projects');
-    } else {
-      feedback.push('Add at least 2-3 projects to strengthen your profile');
-      weaknesses.push('Only 1 project — add more');
-    }
+  if (profile.projects && profile.projects.length >= 2) {
+    score += 20;
+    strengths.push(`Has ${profile.projects.length} projects`);
+  } else if (profile.projects && profile.projects.length === 1) {
+    score += 7;
+    weaknesses.push('Only 1 project — add at least 2');
+    feedback.push('Add at least 2-3 projects relevant to your target role');
   } else {
     weaknesses.push('No projects added — this is critical');
     feedback.push('Build and add at least 2 projects relevant to your target role');

@@ -9,7 +9,7 @@ const profileSchema = new mongoose.Schema({
     yearOfGraduation: {type:String, default: '' },
     skills: [{type: String}],
     interests: [{type: String}],
-    dsalevel : {type:String, enum:['beginner', 'intermediate', 'advanced'], default: 'beginner' },
+    dsaLevel: { type: String, enum: ['beginner', 'intermediate', 'advanced', ''], default: 'beginner' },
     targetRole : {type:String, enum: ['Full Stack Developer', 'SDE', 'Data Analyst',''], default: '' },
     projects: [{
         title: {type: String },
