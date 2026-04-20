@@ -52,4 +52,62 @@ router.get('/stats', protect, adminOnly, async (req, res) => {
   }
 });
 
+const RoleTemplate = require('../models/RoleTemplate');
+
+// @route   GET /api/admin/templates
+// @desc    Get all role templates
+router.get('/templates', protect, adminOnly, async (req, res) => {
+  try {
+    const templates = await RoleTemplate.find();
+    res.json(templates);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// @route   POST /api/admin/templates
+// @desc    Create a new role template
+router.post('/templates', protect, adminOnly, async (req, res) => {
+  try {
+    const { role, description, requiredSkills, weeklyRoadmap } = req.body;
+    const existing = await RoleTemplate.findOne({ role });
+    if (existing) {
+      return res.status(400).json({ message: 'Template for this role already exists' });
+    }
+    const template = new RoleTemplate({ role, description, requiredSkills, weeklyRoadmap });
+    await template.save();
+    res.status(201).json(template);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// @route   PUT /api/admin/templates/:id
+// @desc    Update a role template
+router.put('/templates/:id', protect, adminOnly, async (req, res) => {
+  try {
+    const template = await RoleTemplate.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+    if (!template) return res.status(404).json({ message: 'Template not found' });
+    res.json(template);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// @route   DELETE /api/admin/templates/:id
+// @desc    Delete a role template
+router.delete('/templates/:id', protect, adminOnly, async (req, res) => {
+  try {
+    const template = await RoleTemplate.findByIdAndDelete(req.params.id);
+    if (!template) return res.status(404).json({ message: 'Template not found' });
+    res.json({ message: 'Template deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 module.exports = router;
