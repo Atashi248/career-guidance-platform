@@ -110,4 +110,90 @@ router.delete('/templates/:id', protect, adminOnly, async (req, res) => {
   }
 });
 
+// @route   GET /api/admin/analytics
+// @desc    Get detailed analytics for charts
+router.get('/analytics', protect, adminOnly, async (req, res) => {
+  try {
+    const profiles = await Profile.find();
+
+    // Role Distribution
+    const roleCount = {};
+    profiles.forEach(p => {
+      const role = p.targetRole || 'Not Selected';
+      roleCount[role] = (roleCount[role] || 0) + 1;
+    });
+    const roleDistribution = Object.entries(roleCount).map(([name, value]) => ({ name, value }));
+
+    // DSA Level Distribution
+    const dsaCount = { beginner: 0, intermediate: 0, advanced: 0 };
+    profiles.forEach(p => {
+      if (p.dsaLevel) dsaCount[p.dsaLevel] = (dsaCount[p.dsaLevel] || 0) + 1;
+    });
+    const dsaDistribution = Object.entries(dsaCount).map(([name, value]) => ({ name, value }));
+
+    // CGPA Distribution (ranges)
+    const cgpaRanges = { 'Below 6': 0, '6 - 7': 0, '7 - 8': 0, '8 - 9': 0, '9 - 10': 0 };
+    profiles.forEach(p => {
+      const cgpa = p.cgpa || 0;
+      if (cgpa < 6) cgpaRanges['Below 6']++;
+      else if (cgpa < 7) cgpaRanges['6 - 7']++;
+      else if (cgpa < 8) cgpaRanges['7 - 8']++;
+      else if (cgpa < 9) cgpaRanges['8 - 9']++;
+      else cgpaRanges['9 - 10']++;
+    });
+    const cgpaDistribution = Object.entries(cgpaRanges).map(([name, value]) => ({ name, value }));
+
+    // Skills Count (top 10 most common skills)
+    const skillCount = {};
+    profiles.forEach(p => {
+      (p.skills || []).forEach(skill => {
+        skillCount[skill] = (skillCount[skill] || 0) + 1;
+      });
+    });
+    const topSkills = Object.entries(skillCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([name, value]) => ({ name, value }));
+
+    // Profile Completeness
+    let completeCount = 0;
+    let incompleteCount = 0;
+    profiles.forEach(p => {
+      const hasBasics = p.cgpa && p.targetRole && p.skills?.length >= 3;
+      if (hasBasics) completeCount++;
+      else incompleteCount++;
+    });
+
+    // Average Stats
+    const totalCGPA = profiles.reduce((sum, p) => sum + (p.cgpa || 0), 0);
+    const avgCGPA = profiles.length > 0 ? (totalCGPA / profiles.length).toFixed(2) : 0;
+
+    const totalSkills = profiles.reduce((sum, p) => sum + (p.skills?.length || 0), 0);
+    const avgSkills = profiles.length > 0 ? (totalSkills / profiles.length).toFixed(1) : 0;
+
+    const totalProjects = profiles.reduce((sum, p) => sum + (p.projects?.length || 0), 0);
+    const avgProjects = profiles.length > 0 ? (totalProjects / profiles.length).toFixed(1) : 0;
+
+    res.json({
+      roleDistribution,
+      dsaDistribution,
+      cgpaDistribution,
+      topSkills,
+      profileCompleteness: [
+        { name: 'Complete', value: completeCount },
+        { name: 'Incomplete', value: incompleteCount }
+      ],
+      averages: {
+        avgCGPA,
+        avgSkills,
+        avgProjects,
+        totalProfiles: profiles.length
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 module.exports = router;
