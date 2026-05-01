@@ -3,6 +3,7 @@ const router = express.Router();
 const User = require('../models/User');
 const Profile = require('../models/Profile');
 const { protect, adminOnly } = require('../middleware/auth');
+const { validateRoleTemplate } = require('../middleware/validators');
 
 // @route   GET /api/admin/students
 // @desc    Get all students with their profiles
@@ -67,7 +68,7 @@ router.get('/templates', protect, adminOnly, async (req, res) => {
 
 // @route   POST /api/admin/templates
 // @desc    Create a new role template
-router.post('/templates', protect, adminOnly, async (req, res) => {
+router.post('/templates', protect, adminOnly, validateRoleTemplate, async (req, res) => {
   try {
     const { role, description, requiredSkills, weeklyRoadmap } = req.body;
     const existing = await RoleTemplate.findOne({ role });
@@ -84,7 +85,7 @@ router.post('/templates', protect, adminOnly, async (req, res) => {
 
 // @route   PUT /api/admin/templates/:id
 // @desc    Update a role template
-router.put('/templates/:id', protect, adminOnly, async (req, res) => {
+  router.put('/templates/:id', protect, adminOnly, validateRoleTemplate, async (req, res) => {
   try {
     const template = await RoleTemplate.findByIdAndUpdate(
       req.params.id,

@@ -4,6 +4,8 @@ const Progress = require('../models/Progress');
 const Profile = require('../models/Profile');
 const RoleTemplate = require('../models/RoleTemplate');
 const { protect } = require('../middleware/auth');
+const { validateTaskProgress } = require('../middleware/validators');
+
 
 // @route   GET /api/progress
 // @desc    Get student's progress
@@ -65,7 +67,7 @@ router.get('/', protect, async (req, res) => {
 
 // @route   POST /api/progress/task
 // @desc    Mark a task as complete or incomplete
-router.post('/task', protect, async (req, res) => {
+router.post('/task', protect, validateTaskProgress, async (req, res) => {
   const { week, task, completed } = req.body;
 
   try {

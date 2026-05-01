@@ -2,10 +2,11 @@ const express = require('express');
 const router = express.Router();
 const Profile = require('../models/Profile');
 const { protect } = require('../middleware/auth');
+const { validateProfile } = require('../middleware/validators');
 
 // @route   POST /api/profile
 // @desc    Create or Update profile
-router.post('/', protect, async (req, res) => {
+router.post('/', protect, validateProfile, async (req, res) => {
   const {
     phone, college, branch, cgpa, yearOfGraduation,
     skills, interests, dsaLevel, targetRole,
