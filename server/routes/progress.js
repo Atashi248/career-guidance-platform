@@ -4,8 +4,6 @@ const Progress = require('../models/Progress');
 const Profile = require('../models/Profile');
 const RoleTemplate = require('../models/RoleTemplate');
 const { protect } = require('../middleware/auth');
-const { validateTaskProgress } = require('../middleware/validators');
-
 
 // @route   GET /api/progress
 // @desc    Get student's progress
@@ -23,7 +21,6 @@ router.get('/', protect, async (req, res) => {
       return res.status(404).json({ message: 'Roadmap not found for your role.' });
     }
 
-    // If no progress exists yet, create empty one
     if (!progress) {
       const weeklyProgress = roadmap.weeklyRoadmap.map(week => ({
         week: week.week,
@@ -40,23 +37,22 @@ router.get('/', protect, async (req, res) => {
       });
     }
 
-    // Attach task details from roadmap
-    const progressWithTasks = progress.weeklyProgress.map(wp => {
-      const weekData = roadmap.weeklyRoadmap.find(w => w.week === wp.week);
-      return {
-        week: wp.week,
-        title: weekData?.title || '',
-        tasks: weekData?.tasks || [],
-        completedTasks: wp.completedTasks,
-        totalTasks: wp.totalTasks,
-        completionPercentage: wp.completionPercentage
-      };
+    // Build response in format frontend expects
+    const completedTasks = [];
+    const weeklyCompletion = {};
+
+    progress.weeklyProgress.forEach(wp => {
+      wp.completedTasks.forEach(taskIndex => {
+        completedTasks.push({ weekNumber: wp.week, taskIndex: Number(taskIndex) });
+      });
+      weeklyCompletion[`week${wp.week}`] = wp.completionPercentage;
     });
 
     res.json({
       role: progress.role,
       overallCompletionPercentage: progress.overallCompletionPercentage,
-      weeklyProgress: progressWithTasks,
+      completedTasks,
+      weeklyCompletion,
       lastUpdated: progress.lastUpdated
     });
 
@@ -66,9 +62,17 @@ router.get('/', protect, async (req, res) => {
 });
 
 // @route   POST /api/progress/task
-// @desc    Mark a task as complete or incomplete
-router.post('/task', protect, validateTaskProgress, async (req, res) => {
-  const { week, task, completed } = req.body;
+// @desc    Mark a task as complete or incomplete (TOGGLE)
+router.post('/task', protect, async (req, res) => {
+  let { weekNumber, taskIndex, completed } = req.body;
+
+  // Coerce to numbers — prevents string/number mismatch bugs
+  weekNumber = Number(weekNumber);
+  taskIndex = Number(taskIndex);
+
+  if (isNaN(weekNumber) || isNaN(taskIndex)) {
+    return res.status(400).json({ message: 'Invalid weekNumber or taskIndex' });
+  }
 
   try {
     const profile = await Profile.findOne({ user: req.user._id });
@@ -94,39 +98,65 @@ router.post('/task', protect, validateTaskProgress, async (req, res) => {
       });
     }
 
-    // Find the week and update completed tasks
-    const weekProgress = progress.weeklyProgress.find(w => w.week === week);
+    const weekProgress = progress.weeklyProgress.find(w => w.week === weekNumber);
     if (!weekProgress) {
       return res.status(404).json({ message: 'Week not found' });
     }
 
+    // Normalize existing entries to numbers (fixes legacy string entries from old bug)
+    weekProgress.completedTasks = weekProgress.completedTasks
+      .map(t => Number(t))
+      .filter(t => !isNaN(t));
+
+    // Deduplicate using Set
+    const completedSet = new Set(weekProgress.completedTasks);
+
     if (completed) {
-      if (!weekProgress.completedTasks.includes(task)) {
-        weekProgress.completedTasks.push(task);
-      }
+      completedSet.add(taskIndex);
     } else {
-      weekProgress.completedTasks = weekProgress.completedTasks.filter(t => t !== task);
+      completedSet.delete(taskIndex);
     }
 
-    // Recalculate week completion percentage
-    weekProgress.completionPercentage = Math.round(
-      (weekProgress.completedTasks.length / weekProgress.totalTasks) * 100
+    weekProgress.completedTasks = Array.from(completedSet);
+
+    // Recalculate week % — capped at 100
+    weekProgress.completionPercentage = Math.min(
+      100,
+      Math.round((weekProgress.completedTasks.length / weekProgress.totalTasks) * 100)
     );
 
-    // Recalculate overall completion percentage
+    // Recalculate overall % — capped at 100
     const totalTasks = progress.weeklyProgress.reduce((sum, w) => sum + w.totalTasks, 0);
-    const totalCompleted = progress.weeklyProgress.reduce((sum, w) => sum + w.completedTasks.length, 0);
-    progress.overallCompletionPercentage = Math.round((totalCompleted / totalTasks) * 100);
+    const totalCompleted = progress.weeklyProgress.reduce(
+      (sum, w) => sum + w.completedTasks.length,
+      0
+    );
+    progress.overallCompletionPercentage = Math.min(
+      100,
+      Math.round((totalCompleted / totalTasks) * 100)
+    );
     progress.lastUpdated = Date.now();
 
+    // Mark nested array as modified so Mongoose saves the change
+    progress.markModified('weeklyProgress');
     await progress.save();
 
+    // Return progress in format frontend expects
+    const completedTasksList = [];
+    const weeklyCompletion = {};
+    progress.weeklyProgress.forEach(wp => {
+      wp.completedTasks.forEach(ti => {
+        completedTasksList.push({ weekNumber: wp.week, taskIndex: Number(ti) });
+      });
+      weeklyCompletion[`week${wp.week}`] = wp.completionPercentage;
+    });
+
     res.json({
-      message: 'Progress updated',
-      week: weekProgress.week,
-      completedTasks: weekProgress.completedTasks,
-      weekCompletionPercentage: weekProgress.completionPercentage,
-      overallCompletionPercentage: progress.overallCompletionPercentage
+      role: progress.role,
+      overallCompletionPercentage: progress.overallCompletionPercentage,
+      completedTasks: completedTasksList,
+      weeklyCompletion,
+      lastUpdated: progress.lastUpdated
     });
 
   } catch (error) {

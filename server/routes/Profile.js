@@ -5,28 +5,53 @@ const { protect } = require('../middleware/auth');
 const { validateProfile } = require('../middleware/validators');
 
 // @route   POST /api/profile
-// @desc    Create or Update profile
-router.post('/', protect, validateProfile, async (req, res) => {
+// @desc    Create or Update profile (works for both student and admin)
+router.post('/', protect, async (req, res) => {
   const {
-    phone, college, branch, cgpa, yearOfGraduation,
+    // Common
+    phone,
+    // Student
+    college, branch, cgpa, yearOfGraduation,
     skills, interests, dsaLevel, targetRole,
     projects, internships, certifications,
-    linkedIn, github
+    linkedIn, github,
+    // Admin
+    designation, department, workExperience, bio
   } = req.body;
 
+  // Build profileFields based on role
   const profileFields = {
     user: req.user._id,
-    phone, college, branch, cgpa, yearOfGraduation,
-    skills, interests, dsaLevel, targetRole,
-    projects, internships, certifications,
-    linkedIn, github
+    phone
   };
+
+  if (req.user.role === 'admin') {
+    // Admin-only fields
+    if (designation !== undefined) profileFields.designation = designation;
+    if (department !== undefined) profileFields.department = department;
+    if (workExperience !== undefined) profileFields.workExperience = workExperience;
+    if (bio !== undefined) profileFields.bio = bio;
+  } else {
+    // Student fields
+    if (college !== undefined) profileFields.college = college;
+    if (branch !== undefined) profileFields.branch = branch;
+    if (cgpa !== undefined) profileFields.cgpa = cgpa;
+    if (yearOfGraduation !== undefined) profileFields.yearOfGraduation = yearOfGraduation;
+    if (skills !== undefined) profileFields.skills = skills;
+    if (interests !== undefined) profileFields.interests = interests;
+    if (dsaLevel !== undefined) profileFields.dsaLevel = dsaLevel;
+    if (targetRole !== undefined) profileFields.targetRole = targetRole;
+    if (projects !== undefined) profileFields.projects = projects;
+    if (internships !== undefined) profileFields.internships = internships;
+    if (certifications !== undefined) profileFields.certifications = certifications;
+    if (linkedIn !== undefined) profileFields.linkedIn = linkedIn;
+    if (github !== undefined) profileFields.github = github;
+  }
 
   try {
     let profile = await Profile.findOne({ user: req.user._id });
 
     if (profile) {
-      // Update existing profile
       profile = await Profile.findOneAndUpdate(
         { user: req.user._id },
         { $set: profileFields },
@@ -35,7 +60,6 @@ router.post('/', protect, validateProfile, async (req, res) => {
       return res.json({ message: 'Profile updated successfully', profile });
     }
 
-    // Create new profile
     profile = new Profile(profileFields);
     await profile.save();
     res.status(201).json({ message: 'Profile created successfully', profile });

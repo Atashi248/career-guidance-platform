@@ -5,7 +5,7 @@ const progressSchema = new mongoose.Schema({
   role: { type: String, required: true },
   weeklyProgress: [{
     week: { type: Number },
-    completedTasks: [{ type: String }],
+    completedTasks: [{ type: Number }],   // ← CHANGED from String to Number
     totalTasks: { type: Number },
     completionPercentage: { type: Number, default: 0 },
     completedAt: { type: Date }

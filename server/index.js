@@ -30,6 +30,7 @@ app.use('/api/admin', require('./routes/admin'));
 app.use('/api/progress', require('./routes/progress'));
 app.use('/api/skillgap', require('./routes/skillgap'));
 app.use('/api/recommendation', require('./routes/recommendation'));
+app.use('/api/resources', require('./routes/resources'));
 
 // Base route
 app.get('/', (req, res) => {
